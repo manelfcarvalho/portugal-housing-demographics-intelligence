@@ -4,9 +4,10 @@ A Data Science portfolio project to study housing and demographic patterns in
 Portugal using official public data. Candidate sources include INE, dados.gov.pt,
 PORDATA and potentially Eurostat.
 
-**Current phase: Phase 0 — Data Discovery and Validation.** This repository provides
-the first ingestion pipeline. No exploratory analysis, visualization, research
-findings or machine learning has been produced.
+**Current phase: Phase 1 — Data Quality and Exploratory Analysis.** The first
+municipality-year ingestion pipeline and its structural validation are complete.
+The initial notebook examines data quality, distributions, time trends and early
+relationships; statistical findings and machine learning have not yet been produced.
 
 ## Project structure
 
@@ -16,25 +17,33 @@ portugal-housing-demographics-intelligence/
 │   ├── raw/.gitkeep
 │   ├── interim/.gitkeep
 │   └── processed/.gitkeep
-├── notebooks/.gitkeep
+├── notebooks/
+│   └── 01_data_quality_and_eda.ipynb
 ├── src/
 │   ├── __init__.py
 │   ├── data/
 │   │   ├── __init__.py
+│   │   ├── build_panel.py
 │   │   ├── fetch_ine.py
-│   │   └── transform.py
+│   │   ├── transform.py
+│   │   └── validate_housing.py
 │   ├── features/.gitkeep
 │   ├── models/.gitkeep
 │   └── visualization/.gitkeep
 ├── tests/
 │   ├── test_fetch_ine.py
-│   └── test_transform.py
+│   ├── test_build_panel.py
+│   ├── test_transform.py
+│   └── test_validate_housing.py
 ├── docs/
-│   └── data_sources.md
+│   ├── data_sources.md
+│   ├── coverage_validation.md
+│   └── data_dictionary.md
 ├── app/.gitkeep
 ├── .gitignore
 ├── README.md
 ├── requirements.txt
+├── requirements-analysis.txt
 └── pyproject.toml
 ```
 
@@ -65,22 +74,45 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
-Only `requests` and `pandas` are direct runtime dependencies. Their tested versions
+Only `requests` and `pandas` are direct pipeline dependencies. Their tested versions
 are pinned in `requirements.txt`; tests use Python's standard-library `unittest`.
+
+To work with the analysis notebook, install the separate analysis dependencies and
+start JupyterLab:
+
+```bash
+python -m pip install -r requirements-analysis.txt
+```
+
+In VS Code, open the notebook and select `.venv/bin/python` in the kernel selector
+at the top right. JupyterLab is optional; to use it instead, run `jupyter lab`.
 
 ## Download the first indicator
 
-The target is INE indicator **0012255**, median sale value of family dwellings,
-**€/m²**. The project brief reports a successful manual test with municipal records
-for 2024. The exact API URL has not been supplied, and this pipeline has **not yet
-been validated against a live INE response**. See [source notes](docs/data_sources.md).
+INE indicator **0012255** has now been retrieved for all **seven declared years,
+2019–2025**. All **308 municipality codes and names** in its official metadata
+reference are present in each year/category. Price availability is incomplete:
+for example, category Total has measurements for 286 municipalities in 2019 and
+305 in 2025. Mixed geographic levels remain in the raw data.
 
-Replace the placeholder with the actual working URL, including all query filters:
+See [source notes](docs/data_sources.md), the
+[reproducible coverage audit](docs/coverage_validation.md). Geographic
+coverage is validated against the indicator metadata, not independent boundary
+files. A common municipality-year panel has been defined for 2021–2025.
+
+The initial 2024 extraction has **2,793 rows, 8 columns and 1,114 missing
+measurements** across 931 geographic codes and three categories.
+
+Use the exact URL provided for the first extraction:
 
 ```bash
-python -m src.data.fetch_ine --url "<INE_API_URL>" --name housing_prices_2024
-python -m src.data.transform data/raw/housing_prices_2024.json
+python -m src.data.fetch_ine --url "https://www.ine.pt/ine/json_indicador/pindica.jsp?op=2&varcd=0012255&Dim1=S7A2024&lang=PT" --name housing_prices_2024
+python -m src.data.transform data/raw/housing_prices_2024.json --records-path /0/Dados/2024 --value-column valor
 ```
+
+The explicit record path excludes the separate API status-message list. The year
+is stored in the JSON envelope; it is not automatically added as a CSV column.
+Existing files are protected; use a new name to repeat an extraction.
 
 Outputs default to `data/raw/housing_prices_2024.json` and
 `data/processed/housing_prices_2024.csv`, relative to the installed source tree.
@@ -129,6 +161,44 @@ Existing CSV files are not overwritten; choose another `--output-dir` for anothe
 record selection. Preserve the exact URL, extraction date and selected record path
 when documenting the first real run.
 
+## Reproducible coverage audit
+
+After downloading the official metadata and annual JSON files as described in
+[coverage validation](docs/coverage_validation.md):
+
+```bash
+python -m src.data.validate_housing --metadata data/raw/housing_prices_metadata_20260928.json --raw-files data/raw/housing_prices_20[12][0-9].json --output-dir data/interim/housing_validation_20260928
+```
+
+This checks periods, geography/category membership, labels, duplicate keys and
+measurement availability. It writes an audit JSON with input hashes and a coverage
+CSV; it does not clean prices or construct a research panel. Use a new output
+directory for a rerun. The validator is scoped to the inspected indicator and
+geography version and fails if that classification changes.
+
+## First municipality-year panel
+
+After the documented raw snapshots are present, build the 2021–2025 panel:
+
+```bash
+python -m src.data.build_panel
+```
+
+This writes `data/processed/municipality_year_panel_2021_2025.csv`: 1,540 unique
+municipality-year rows with housing price (Total), population, ageing index,
+migration balance and fiscal income per tax household. Missing housing prices and
+unavailable 2025 income remain empty. The builder validates indicator IDs, API
+status, municipal metadata, category filters, numeric values and join cardinality.
+See [data dictionary](docs/data_dictionary.md) before interpreting the columns.
+
+## Exploratory analysis notebook
+
+Open `notebooks/01_data_quality_and_eda.ipynb` after building the panel. The
+notebook checks the municipality-year key, summarizes missing values, calculates
+descriptive statistics and creates initial distribution, trend, scatter and
+correlation plots. Reusable ingestion and validation logic remains in `src/`; the
+notebook is the documented workspace for exploration and interpretation.
+
 ## Tests
 
 ```bash
@@ -143,13 +213,13 @@ selection and validation output. Passing tests does not validate INE coverage.
 ## Roadmap
 
 - [x] Identify candidate official datasets
-- [ ] Validate API extraction
-- [ ] Validate temporal coverage
-- [ ] Validate municipality coverage
-- [ ] Determine common municipality-year panel
+- [x] Validate API extraction
+- [x] Validate temporal coverage
+- [x] Validate municipality coverage
+- [x] Determine common municipality-year panel
 - [ ] Define final research questions
-- [ ] Data cleaning and integration
-- [ ] Exploratory Data Analysis
+- [x] Data cleaning and integration
+- [x] Initial data-quality EDA notebook
 - [ ] Feature engineering
 - [ ] Statistical analysis
 - [ ] Machine Learning
@@ -158,4 +228,6 @@ selection and validation output. Passing tests does not validate INE coverage.
 - [ ] Testing and CI/CD
 - [ ] Deployment
 
-Initial unit tests exist; broader testing and CI/CD remain on the roadmap.
+Coverage checks refer to the documented metadata snapshots. Missing measurements
+remain explicit in the panel and are examined in the first notebook. Initial unit
+and integration tests exist; broader testing and CI/CD remain on the roadmap.
