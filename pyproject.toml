@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "portugal-housing-demographics-intelligence"
 version = "0.1.0"
-description = "Phase 0: reproducible discovery and validation of official Portuguese housing and demographic data."
+description = "Reproducible analysis of Portuguese municipal housing and demographic data."
 readme = "README.md"
 requires-python = ">=3.11"
 dynamic = ["dependencies"]

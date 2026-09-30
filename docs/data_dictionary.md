@@ -31,6 +31,25 @@ The panel contains 308 municipalities and five years (2021–2025), producing
 CSV readers must load `municipality_code` as a string. It is an identifier rather
 than a numeric measurement.
 
+## Derived analysis features
+
+`data/processed/municipality_year_features_2021_2025.csv` preserves the original
+panel columns and adds:
+
+| Column | Definition | Unit | Expected missing values |
+| --- | --- | --- | --- |
+| `housing_price_growth_pct` | Consecutive year-on-year change in median housing price | percent | First year and any pair containing an unavailable price |
+| `population_growth_pct` | Consecutive year-on-year change in resident population | percent | First year for every municipality |
+| `income_growth_pct` | Consecutive year-on-year change in fiscal household income | percent | First year and 2025, where income is unavailable |
+| `aging_index_change` | Current ageing index minus the previous consecutive year's index | index points | First year for every municipality |
+| `migration_rate_per_1000` | Migration balance divided by resident population, multiplied by 1,000 | people per 1,000 residents | None in the current panel |
+| `annual_income_needed_for_one_m2_pct` | Median price of one m² divided by annual fiscal household income, multiplied by 100 | percent | Any row with unavailable price or income |
+
+Growth is calculated only between consecutive years for the same municipality.
+The price-income feature is an exploratory comparison: it is not an official
+housing affordability measure or household effort rate because the dataset does
+not contain total dwelling prices, dwelling size or household expenditure.
+
 ## Source filters
 
 The processed panel applies the following selections to the raw indicator data:

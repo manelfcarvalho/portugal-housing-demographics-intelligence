@@ -27,11 +27,14 @@ portugal-housing-demographics-intelligence/
 │   │   ├── fetch_ine.py
 │   │   ├── transform.py
 │   │   └── validate_housing.py
-│   ├── features/.gitkeep
+│   ├── features/
+│   │   ├── __init__.py
+│   │   └── build_features.py
 │   ├── models/.gitkeep
 │   └── visualization/.gitkeep
 ├── tests/
 │   ├── test_fetch_ine.py
+│   ├── test_build_features.py
 │   ├── test_build_panel.py
 │   ├── test_transform.py
 │   └── test_validate_housing.py
@@ -199,6 +202,21 @@ descriptive statistics and creates initial distribution, trend, scatter and
 correlation plots. Reusable ingestion and validation logic remains in `src/`; the
 notebook is the documented workspace for exploration and interpretation.
 
+## Feature engineering
+
+Build the analysis features from the validated panel:
+
+```bash
+python -m src.features.build_features
+```
+
+This writes `data/processed/municipality_year_features_2021_2025.csv` with the
+original 1,540 rows plus annual price, population and income growth; annual ageing
+index change; migration balance per 1,000 residents; and the percentage of annual
+fiscal household income represented by one square metre at the municipal median
+sale price. Missing source measurements and first-year growth values remain empty.
+See the [data dictionary](docs/data_dictionary.md) for definitions and limitations.
+
 ## Tests
 
 ```bash
@@ -217,10 +235,10 @@ selection and validation output. Passing tests does not validate INE coverage.
 - [x] Validate temporal coverage
 - [x] Validate municipality coverage
 - [x] Determine common municipality-year panel
-- [ ] Define final research questions
+- [x] Define initial research questions
 - [x] Data cleaning and integration
 - [x] Initial data-quality EDA notebook
-- [ ] Feature engineering
+- [x] Initial feature engineering
 - [ ] Statistical analysis
 - [ ] Machine Learning
 - [ ] Model explainability
