@@ -18,7 +18,8 @@ portugal-housing-demographics-intelligence/
 │   ├── interim/.gitkeep
 │   └── processed/.gitkeep
 ├── notebooks/
-│   └── 01_data_quality_and_eda.ipynb
+│   ├── 01_data_quality_and_eda.ipynb
+│   └── 02_research_questions.ipynb
 ├── src/
 │   ├── __init__.py
 │   ├── data/
@@ -194,13 +195,17 @@ unavailable 2025 income remain empty. The builder validates indicator IDs, API
 status, municipal metadata, category filters, numeric values and join cardinality.
 See [data dictionary](docs/data_dictionary.md) before interpreting the columns.
 
-## Exploratory analysis notebook
+## Analysis notebooks
 
-Open `notebooks/01_data_quality_and_eda.ipynb` after building the panel. The
-notebook checks the municipality-year key, summarizes missing values, calculates
-descriptive statistics and creates initial distribution, trend, scatter and
-correlation plots. Reusable ingestion and validation logic remains in `src/`; the
-notebook is the documented workspace for exploration and interpretation.
+`notebooks/01_data_quality_and_eda.ipynb` checks the municipality-year key,
+summarizes missing values, calculates descriptive statistics and creates initial
+distribution, trend, scatter and correlation plots.
+
+`notebooks/02_research_questions.ipynb` uses the engineered features to compare
+municipal housing-price growth, examine the price-income relationship and test
+same-year and lagged associations between migration rates and price growth.
+Reusable data and feature logic remains in `src/`; notebooks document exploration
+and interpretation.
 
 ## Feature engineering
 
