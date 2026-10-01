@@ -189,8 +189,9 @@ python -m src.data.build_panel
 ```
 
 This writes `data/processed/municipality_year_panel_2021_2025.csv`: 1,540 unique
-municipality-year rows with housing price (Total), population, ageing index,
-migration balance and fiscal income per tax household. Missing housing prices and
+municipality-year rows with NUTS II and NUTS III membership, housing price
+(Total), population, ageing index, migration balance and declared income less IRS
+per tax household. Missing housing prices and
 unavailable 2025 income remain empty. The builder validates indicator IDs, API
 status, municipal metadata, category filters, numeric values and join cardinality.
 See [data dictionary](docs/data_dictionary.md) before interpreting the columns.

@@ -1,4 +1,4 @@
-"""Build the first validated municipality-year panel from preserved INE JSON."""
+"""Build the validated municipality-year panel from preserved INE JSON."""
 
 import argparse
 import json
@@ -30,7 +30,7 @@ SOURCES = {
         "indicator": "0013179", "metadata": "migration_balance_metadata_20260930.json",
         "pattern": "migration_balance_{year}.json", "years": YEARS, "filters": {},
     },
-    "income_after_tax_per_tax_household": {
+    "declared_income_less_irs_per_tax_household": {
         "indicator": "0012740", "metadata": "income_household_metadata_20260930.json",
         "pattern": "income_household_{year}.json", "years": YEARS[:-1], "filters": {},
     },
@@ -49,24 +49,64 @@ def _load_one(path: Path, indicator: str) -> dict:
     return item
 
 
-def _municipal_reference(metadata: dict) -> dict[str, str]:
+def _geography_categories(metadata: dict) -> list[dict]:
     try:
-        categories = [
+        return [
             row
             for group in metadata["Dimensoes"]["Categoria_Dim"]
             for entries in group.values()
             for row in entries
+            if row["dim_num"] == "2"
         ]
-        reference = {
-            row["cat_id"]: row["categ_dsg"]
-            for row in categories
-            if row["dim_num"] == "2" and row["categ_nivel"] == "5"
-        }
     except (KeyError, TypeError) as exc:
         raise ValueError("Metadata differs from the inspected INE schema") from exc
+
+
+def _municipal_reference(metadata: dict) -> dict[str, str]:
+    categories = _geography_categories(metadata)
+    reference = {
+        row["cat_id"]: row["categ_dsg"]
+        for row in categories
+        if row["categ_nivel"] == "5"
+    }
     if len(reference) != 308:
         raise ValueError(f"Expected 308 municipal metadata categories, found {len(reference)}")
     return reference
+
+
+def _municipal_geography(metadata: dict) -> pd.DataFrame:
+    """Map every municipality to one NUTS II and one NUTS III in NUTS 2024."""
+    categories = _geography_categories(metadata)
+    by_level = {
+        level: [row for row in categories if row["categ_nivel"] == level]
+        for level in ("3", "4", "5")
+    }
+    if len(by_level["3"]) != 9 or len(by_level["4"]) != 26 or len(by_level["5"]) != 308:
+        raise ValueError("Expected 9 NUTS II, 26 NUTS III and 308 municipalities")
+
+    records = []
+    for municipality in by_level["5"]:
+        municipality_code = municipality["cat_id"]
+        nuts2_matches = [row for row in by_level["3"] if municipality_code.startswith(row["cat_id"])]
+        nuts3_matches = [row for row in by_level["4"] if municipality_code.startswith(row["cat_id"])]
+        if len(nuts2_matches) != 1 or len(nuts3_matches) != 1:
+            raise ValueError(f"Ambiguous NUTS hierarchy for municipality {municipality_code}")
+        nuts2, nuts3 = nuts2_matches[0], nuts3_matches[0]
+        records.append(
+            {
+                "municipality_code": municipality_code,
+                "municipality_name": municipality["categ_dsg"],
+                "nuts2_code": nuts2["cat_id"],
+                "nuts2_name": nuts2["categ_dsg"],
+                "nuts3_code": nuts3["cat_id"],
+                "nuts3_name": nuts3["categ_dsg"],
+            }
+        )
+
+    geography = pd.DataFrame.from_records(records)
+    if geography["municipality_code"].duplicated().any():
+        raise ValueError("Duplicate municipality in NUTS hierarchy")
+    return geography
 
 
 def _source_table(raw_dir: Path, column: str, spec: dict, canonical: dict[str, str]) -> pd.DataFrame:
@@ -95,15 +135,20 @@ def _source_table(raw_dir: Path, column: str, spec: dict, canonical: dict[str, s
         if column == "housing_price_m2_total":
             missing = frame["valor"].isna() | frame["valor"].eq("")
             markers = frame.loc[missing, ["ind_string", "sinal_conv", "sinal_conv_desc"]]
-            expected_marker = (markers["ind_string"].eq("-") & markers["sinal_conv"].eq("-")
-                               & markers["sinal_conv_desc"].eq("Dado nulo ou não aplicável"))
+            expected_marker = (
+                markers["ind_string"].eq("-")
+                & markers["sinal_conv"].eq("-")
+                & markers["sinal_conv_desc"].eq("Dado nulo ou não aplicável")
+            )
             if not expected_marker.all():
                 raise ValueError(f"Unreviewed housing missing-value marker in {year}")
         numeric = pd.to_numeric(frame["valor"], errors="coerce")
         unexpected = frame["valor"].notna() & frame["valor"].ne("") & numeric.isna()
         if unexpected.any():
             raise ValueError(f"Non-numeric measurement for {column} in {year}")
-        part = pd.DataFrame({"municipality_code": frame["geocod"], "year": frame["year"], column: numeric})
+        part = pd.DataFrame(
+            {"municipality_code": frame["geocod"], "year": frame["year"], column: numeric}
+        )
         frames.append(part)
 
     result = pd.concat(frames, ignore_index=True)
@@ -115,13 +160,13 @@ def _source_table(raw_dir: Path, column: str, spec: dict, canonical: dict[str, s
 def build_panel(raw_dir: Path = RAW_DIR) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Return the panel and a missing-value audit without imputing observations."""
     raw_dir = Path(raw_dir)
-    population_meta = _load_one(raw_dir / SOURCES["population_total"]["metadata"], "0012918")
-    canonical = _municipal_reference(population_meta)
-    base = pd.MultiIndex.from_product(
-        [sorted(canonical), [int(year) for year in YEARS]], names=["municipality_code", "year"]
-    ).to_frame(index=False)
-    base.insert(1, "municipality_name", base["municipality_code"].map(canonical))
+    housing_spec = SOURCES["housing_price_m2_total"]
+    housing_meta = _load_one(raw_dir / housing_spec["metadata"], housing_spec["indicator"])
+    geography = _municipal_geography(housing_meta)
+    canonical = dict(zip(geography["municipality_code"], geography["municipality_name"], strict=True))
 
+    years = pd.DataFrame({"year": [int(year) for year in YEARS]})
+    base = geography.merge(years, how="cross")
     panel = base
     audits = []
     for column, spec in SOURCES.items():
@@ -129,8 +174,15 @@ def build_panel(raw_dir: Path = RAW_DIR) -> tuple[pd.DataFrame, pd.DataFrame]:
         panel = panel.merge(table, on=["municipality_code", "year"], how="left", validate="one_to_one")
         for year in map(int, YEARS):
             values = panel.loc[panel["year"] == year, column]
-            audits.append({"column": column, "year": year, "rows": len(values),
-                           "present": int(values.notna().sum()), "missing": int(values.isna().sum())})
+            audits.append(
+                {
+                    "column": column,
+                    "year": year,
+                    "rows": len(values),
+                    "present": int(values.notna().sum()),
+                    "missing": int(values.isna().sum()),
+                }
+            )
 
     if len(panel) != 1540 or panel.duplicated(["municipality_code", "year"]).any():
         raise ValueError("Panel must contain exactly 1,540 unique municipality-year rows")

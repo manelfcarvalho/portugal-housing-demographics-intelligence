@@ -10,17 +10,23 @@ DEFAULT_INPUT = ROOT / "data/processed/municipality_year_panel_2021_2025.csv"
 DEFAULT_OUTPUT = ROOT / "data/processed/municipality_year_features_2021_2025.csv"
 
 KEY = ["municipality_code", "year"]
-REQUIRED_COLUMNS = [
+DIMENSION_COLUMNS = [
     "municipality_code",
     "municipality_name",
+    "nuts2_code",
+    "nuts2_name",
+    "nuts3_code",
+    "nuts3_name",
     "year",
+]
+MEASUREMENT_COLUMNS = [
     "housing_price_m2_total",
     "population_total",
     "aging_index",
     "migration_balance",
-    "income_after_tax_per_tax_household",
+    "declared_income_less_irs_per_tax_household",
 ]
-MEASUREMENT_COLUMNS = REQUIRED_COLUMNS[3:]
+REQUIRED_COLUMNS = DIMENSION_COLUMNS + MEASUREMENT_COLUMNS
 
 
 def _annual_change_percent(frame: pd.DataFrame, column: str) -> pd.Series:
@@ -53,9 +59,8 @@ def add_features(panel: pd.DataFrame) -> pd.DataFrame:
 
     if result["population_total"].isna().any() or result["population_total"].le(0).any():
         raise ValueError("Population must be present and greater than zero")
-    invalid_income = result["income_after_tax_per_tax_household"].notna() & result[
-        "income_after_tax_per_tax_household"
-    ].le(0)
+    income_column = "declared_income_less_irs_per_tax_household"
+    invalid_income = result[income_column].notna() & result[income_column].le(0)
     if invalid_income.any():
         raise ValueError("Present income values must be greater than zero")
 
@@ -64,19 +69,15 @@ def add_features(panel: pd.DataFrame) -> pd.DataFrame:
         result, "housing_price_m2_total"
     )
     result["population_growth_pct"] = _annual_change_percent(result, "population_total")
-    result["income_growth_pct"] = _annual_change_percent(
-        result, "income_after_tax_per_tax_household"
-    )
+    result["income_growth_pct"] = _annual_change_percent(result, income_column)
     result["aging_index_change"] = result.groupby("municipality_code", sort=False)[
         "aging_index"
     ].diff()
     result["migration_rate_per_1000"] = (
         result["migration_balance"].div(result["population_total"]).mul(1000)
     )
-    result["annual_income_needed_for_one_m2_pct"] = (
-        result["housing_price_m2_total"]
-        .div(result["income_after_tax_per_tax_household"])
-        .mul(100)
+    result["one_m2_price_as_declared_income_pct"] = (
+        result["housing_price_m2_total"].div(result[income_column]).mul(100)
     )
     return result
 
@@ -88,7 +89,10 @@ def main() -> None:
     args = parser.parse_args()
 
     try:
-        panel = pd.read_csv(args.input, dtype={"municipality_code": "string"})
+        panel = pd.read_csv(
+            args.input,
+            dtype={"municipality_code": "string", "nuts2_code": "string", "nuts3_code": "string"},
+        )
         features = add_features(panel)
         if args.output.exists():
             raise FileExistsError(f"Output already exists: {args.output}")

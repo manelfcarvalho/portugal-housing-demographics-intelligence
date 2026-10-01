@@ -13,12 +13,18 @@ class FeatureBuildTests(unittest.TestCase):
             {
                 "municipality_code": ["002", "001", "001", "002", "001", "002"],
                 "municipality_name": ["B", "A", "A", "B", "A", "B"],
+                "nuts2_code": ["N2B", "N2A", "N2A", "N2B", "N2A", "N2B"],
+                "nuts2_name": ["Region B", "Region A", "Region A", "Region B", "Region A", "Region B"],
+                "nuts3_code": ["N3B", "N3A", "N3A", "N3B", "N3A", "N3B"],
+                "nuts3_name": ["Subregion B", "Subregion A", "Subregion A", "Subregion B", "Subregion A", "Subregion B"],
                 "year": [2021, 2021, 2022, 2022, 2023, 2023],
                 "housing_price_m2_total": [200.0, 100.0, 110.0, 220.0, None, 242.0],
                 "population_total": [2000, 1000, 1020, 2100, 1030, 2200],
                 "aging_index": [200.0, 100.0, 105.0, 198.0, 108.0, 195.0],
                 "migration_balance": [20, -10, 51, 42, 0, -22],
-                "income_after_tax_per_tax_household": [20000.0, 10000.0, 10500.0, 21000.0, None, 22000.0],
+                "declared_income_less_irs_per_tax_household": [
+                    20000.0, 10000.0, 10500.0, 21000.0, None, 22000.0
+                ],
             }
         )
 
@@ -33,8 +39,9 @@ class FeatureBuildTests(unittest.TestCase):
         self.assertAlmostEqual(a_2022["income_growth_pct"], 5.0)
         self.assertAlmostEqual(a_2022["aging_index_change"], 5.0)
         self.assertAlmostEqual(a_2022["migration_rate_per_1000"], 50.0)
-        self.assertAlmostEqual(a_2022["annual_income_needed_for_one_m2_pct"], 110 / 10500 * 100)
+        self.assertAlmostEqual(a_2022["one_m2_price_as_declared_income_pct"], 110 / 10500 * 100)
         self.assertEqual(result.iloc[0]["municipality_code"], "001")
+        self.assertEqual(a_2022["nuts3_name"], "Subregion A")
 
     def test_first_year_and_missing_inputs_do_not_create_false_growth(self):
         result = add_features(self.panel)
@@ -45,7 +52,7 @@ class FeatureBuildTests(unittest.TestCase):
         a_2023 = result.query("municipality_code == '001' and year == 2023").iloc[0]
         self.assertTrue(pd.isna(a_2023["housing_price_growth_pct"]))
         self.assertTrue(pd.isna(a_2023["income_growth_pct"]))
-        self.assertTrue(pd.isna(a_2023["annual_income_needed_for_one_m2_pct"]))
+        self.assertTrue(pd.isna(a_2023["one_m2_price_as_declared_income_pct"]))
 
     def test_nonconsecutive_years_are_not_compared(self):
         gap = self.panel.query("not (municipality_code == '001' and year == 2022)")
@@ -64,13 +71,13 @@ class FeatureBuildTests(unittest.TestCase):
             add_features(invalid_population)
 
         invalid_income = self.panel.copy()
-        invalid_income.loc[0, "income_after_tax_per_tax_household"] = 0
+        invalid_income.loc[0, "declared_income_less_irs_per_tax_household"] = 0
         with self.assertRaisesRegex(ValueError, "income"):
             add_features(invalid_income)
 
     def test_missing_required_column_fails(self):
-        with self.assertRaisesRegex(ValueError, "aging_index"):
-            add_features(self.panel.drop(columns="aging_index"))
+        with self.assertRaisesRegex(ValueError, "nuts3_name"):
+            add_features(self.panel.drop(columns="nuts3_name"))
 
 
 if __name__ == "__main__":
