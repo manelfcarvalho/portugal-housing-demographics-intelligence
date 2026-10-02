@@ -171,3 +171,29 @@ missing municipal measurements were found. Income is based on anonymized fiscal
 data from tax returns and should not be described as average salary or income for
 every resident. Housing remains the only selected source with missing municipal
 measurements in the common years.
+
+## Consumer Price Index for constant euros
+
+- **Source:** INE (Instituto Nacional de Estatística)
+- **Indicator:** `0014642`
+- **Description:** Consumer Price Index, Base 2025, by geographic location and
+  special aggregates; annual
+- **Selected geography:** `PT = Portugal`
+- **Selected aggregate:** `T = Total`
+- **Selected periods:** 2021–2025
+- **Observed values:** 84.825, 91.469, 95.412, 97.717 and 100.000
+- **Purpose:** convert the two monetary variables to constant 2025 euros
+- **Metadata snapshot:** `cpi_annual_base2025_metadata_20261001.json`
+- **Annual snapshots:** `cpi_annual_base2025_2021.json` through
+  `cpi_annual_base2025_2025.json`
+- **Official API:** [INE JSON response](https://www.ine.pt/ine/json_indicador/pindica.jsp?op=2&varcd=0014642&lang=PT)
+- **Official metadata:** [INE JSON metadata](https://www.ine.pt/ine/json_indicador/pindicaMeta.jsp?varcd=0014642&lang=PT)
+
+The INE introduced the Base 2025 series in 2026. Its metadata declares annual
+coverage from 1948 to 2025. Annual responses were requested explicitly with
+`Dim1=S7A<year>` because an unfiltered API request returns only the latest period.
+The base-year observation is validated as exactly 100 before any conversion.
+
+The pipeline writes `data/interim/cpi_portugal_annual_2021_2025.csv`, containing
+one row per year, the CPI and `100 / CPI` adjustment factor. The CPI is national:
+the same factor is joined to all 308 municipalities in a given year.

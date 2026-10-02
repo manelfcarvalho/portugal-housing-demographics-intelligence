@@ -24,6 +24,7 @@ portugal-housing-demographics-intelligence/
 │   ├── __init__.py
 │   ├── data/
 │   │   ├── __init__.py
+│   │   ├── build_cpi.py
 │   │   ├── build_panel.py
 │   │   ├── fetch_ine.py
 │   │   ├── transform.py
@@ -35,6 +36,7 @@ portugal-housing-demographics-intelligence/
 │   └── visualization/.gitkeep
 ├── tests/
 │   ├── test_fetch_ine.py
+│   ├── test_build_cpi.py
 │   ├── test_build_features.py
 │   ├── test_build_panel.py
 │   ├── test_transform.py
@@ -210,9 +212,11 @@ and interpretation.
 
 ## Feature engineering
 
-Build the analysis features from the validated panel:
+First build the five-row national annual CPI reference, then build the analysis
+features from the validated panel:
 
 ```bash
+python -m src.data.build_cpi
 python -m src.features.build_features
 ```
 
@@ -220,7 +224,9 @@ This writes `data/processed/municipality_year_features_2021_2025.csv` with the
 original 1,540 rows plus annual price, population and income growth; annual ageing
 index change; migration balance per 1,000 residents; and the percentage of annual
 fiscal household income represented by one square metre at the municipal median
-sale price. Missing source measurements and first-year growth values remain empty.
+sale price. It also includes the national CPI, the factor used to convert each year
+to constant 2025 euros, constant-euro housing price and income, and their real
+annual growth rates. Missing source measurements and first-year growth values remain empty.
 See the [data dictionary](docs/data_dictionary.md) for definitions and limitations.
 
 ## Tests

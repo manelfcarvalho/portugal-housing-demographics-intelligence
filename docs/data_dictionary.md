@@ -59,11 +59,29 @@ panel columns and adds:
 | `aging_index_change` | Current ageing index minus the previous consecutive year's index | index points | First year for every municipality |
 | `migration_rate_per_1000` | Migration balance divided by resident population, multiplied by 1,000 | people per 1,000 residents | None in the current panel |
 | `one_m2_price_as_declared_income_pct` | Median price of one m² divided by declared income less IRS per tax household, multiplied by 100 | percent | Any row with unavailable price or income |
+| `cpi_index_2025_base` | Annual national Consumer Price Index, Portugal total, with 2025 = 100 | index | None |
+| `inflation_adjustment_to_2025` | Factor `100 / cpi_index_2025_base` used to express nominal euros in constant 2025 euros | multiplier | None |
+| `housing_price_m2_total_2025_eur` | Median housing sale price per m² converted to constant 2025 euros | 2025 €/m² | Same unavailable observations as the nominal price |
+| `declared_income_less_irs_per_tax_household_2025_eur` | Fiscal household income measure converted to constant 2025 euros | 2025 euros | Unavailable in 2025 |
+| `housing_price_real_growth_pct` | Consecutive annual change in constant-2025-euro housing price | percent | First year and any pair containing an unavailable price |
+| `income_real_growth_pct` | Consecutive annual change in constant-2025-euro fiscal household income | percent | First year and 2025 |
 
 Growth is calculated only between consecutive years for the same municipality.
 The price-income feature is an exploratory comparison: it is not an official
 housing affordability measure or household effort rate because the dataset does
 not contain total dwelling prices, dwelling size or household expenditure.
+
+The inflation conversion uses the INE annual national IPC for `Portugal` and
+aggregate `Total`, indicator `0014642` (Base 2025). For a nominal amount in year
+`t`, the calculation is:
+
+```text
+constant 2025 euros = nominal euros × (100 / CPI_t)
+```
+
+The same annual factor applies to every municipality. The constant-euro columns
+support comparisons through time; they do not represent municipality-specific
+inflation. Nominal columns remain available and unchanged.
 
 ## Source filters
 
@@ -99,6 +117,9 @@ use the common 2021–2024 period. Other analyses may retain 2025.
 - The income measure comes from anonymised tax-return data and uses the tax
   household as its denominator. It is not average salary or income for every
   resident.
+- The IPC adjustment removes changes in the national general consumer price
+  level. It is not a housing-specific price index and does not measure local
+  differences in cost of living.
 - Relationships between variables are observational and do not establish
   causality.
 - Indicator geography versions differ internally. The builder verifies the exact
