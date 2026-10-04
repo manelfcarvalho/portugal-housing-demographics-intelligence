@@ -4,10 +4,10 @@ A Data Science portfolio project to study housing and demographic patterns in
 Portugal using official public data. Candidate sources include INE, dados.gov.pt,
 PORDATA and potentially Eurostat.
 
-**Current phase: Phase 1 — Data Quality and Exploratory Analysis.** The first
-municipality-year ingestion pipeline and its structural validation are complete.
-The initial notebook examines data quality, distributions, time trends and early
-relationships; statistical findings and machine learning have not yet been produced.
+**Current phase: Phase 1 — Data Quality and Exploratory Analysis.** The validated
+municipality-year pipeline now supports national and regional exploratory analysis
+in nominal and constant-2025-euro terms. Inferential panel models and machine
+learning have not yet been produced.
 
 ## Project structure
 
@@ -19,7 +19,8 @@ portugal-housing-demographics-intelligence/
 │   └── processed/.gitkeep
 ├── notebooks/
 │   ├── 01_data_quality_and_eda.ipynb
-│   └── 02_research_questions.ipynb
+│   ├── 02_research_questions.ipynb
+│   └── 03_regional_analysis.ipynb
 ├── src/
 │   ├── __init__.py
 │   ├── data/
@@ -54,7 +55,7 @@ portugal-housing-demographics-intelligence/
 ```
 
 Datasets in `data/raw`, `data/interim` and `data/processed` are ignored by Git.
-The feature, model, visualization, notebook and app directories are placeholders.
+The model, visualization and app directories remain placeholders.
 
 ## Initial pipeline
 
@@ -207,6 +208,10 @@ distribution, trend, scatter and correlation plots.
 `notebooks/02_research_questions.ipynb` uses the engineered features to compare
 municipal housing-price growth, examine the price-income relationship and test
 same-year and lagged associations between migration rates and price growth.
+
+`notebooks/03_regional_analysis.ipynb` compares constant-euro price levels and
+growth across NUTS II regions, measures each municipality relative to its NUTS III
+median, and examines regional price-income and migration-growth relationships.
 Reusable data and feature logic remains in `src/`; notebooks document exploration
 and interpretation.
 
@@ -251,6 +256,7 @@ selection and validation output. Passing tests does not validate INE coverage.
 - [x] Data cleaning and integration
 - [x] Initial data-quality EDA notebook
 - [x] Initial feature engineering
+- [x] Regional exploratory analysis
 - [ ] Statistical analysis
 - [ ] Machine Learning
 - [ ] Model explainability
